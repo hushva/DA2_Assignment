@@ -17,7 +17,7 @@ pop_raw <- WDI(indicator=c('SP.POP.TOTL'),
 my_path <- "~/Documents/CEU/Courses/2020_Fall/Mandatory/DA2/DA2_Assignment/data/"
 
 # covid data
-write_csv(covid_raw, paste0(my_path,'raw/covid_09_11_2020_raw.csv'))
+write_csv(covid_raw, paste0(my_path,'raw/covid_02_11_2020_raw.csv'))
 
 # population data
 write_csv(pop_raw, paste0(my_path,'raw/pop_WDI_2019.csv'))

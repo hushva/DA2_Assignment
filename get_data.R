@@ -3,7 +3,7 @@ rm(list=ls())
 library(WDI)
 library(tidyverse)
 
-date <- '02-11-2020'
+date <- '11-02-2020'
 covid_url <- paste0('https://raw.githubusercontent.com/CSSEGISandData/COVID-19/master/csse_covid_19_data/csse_covid_19_daily_reports/',
                     date,'.csv')
 covid_raw <- read.csv(covid_url)

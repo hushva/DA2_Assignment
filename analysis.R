@@ -223,7 +223,16 @@ df %>% top_n( 5 , reg5_res ) %>%
   select( country , ln_death , reg5_y_pred , reg5_res )
 
 
+# (j) - Testing hypothesis #######################
 
+# 1) Coefficient is equal to 0:
+# Implemented by default...
+summary( reg5 )
+
+# 2) Coefficient is equal to your favorite value
+library(car)
+# Let test: H0: ln_confirmed = 5, HA: ln_gdppc neq 5
+linearHypothesis( reg5 , "ln_gdppc = 5")
 
 
 

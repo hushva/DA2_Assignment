@@ -184,18 +184,44 @@ ggplot(data = df, aes(x = ln_confirmed, y = ln_death)) +
 #(i) -  Creating model summary ################################
 # with texreg
 
-data_out <- "Documents/Egyetem/CEU/Teaching_2020/Coding_with_R/git_coding_1/ECBS-5208-Coding-1-Business-Analytics/Class_8/out/"
-htmlreg( list(reg1 , reg2 , reg3 , reg4 , reg5 , reg6 , reg7),
+data_out <- "~/Documents/CEU/Courses/2020_Fall/Mandatory/DA2/DA2_Assignment/out/"
+htmlreg( list(reg1 , reg2 , reg3 , reg4 , reg5),
          type = 'html',
-         custom.model.names = c("GDP total - linear",
-                                "GDP total - quadratic",
-                                "GDP total - cubic",
-                                "GDP/capita - linear",
-                                "GDP/capita - quadratic",
-                                "GDP/capita - PLS",
-                                "GDP/capita - weighted linear"),
-         caption = "Modelling life expectancy and different wealth measures of countries",
+         custom.model.names = c("confirmed - linear",
+                                "confirmed - quadratic",
+                                "confirmed - cubic",
+                                "confirmed - PLS",
+                                "confirmed - weighted linear"),
+         caption = "Modelling number of deaths  and reported confirmed cases in different countries",
          file = paste0( data_out ,'model_comparison.html'), include.ci = FALSE)
+
+######
+# Based on model comparison our chosen model is reg5 - weighted linear
+#   Substantive: - level-log interpretation works properly for countries
+#                - magnitude of coefficients are meaningful
+#   Statistical: - simple model, easy to interpret
+#                - Comparatively high R2 and captures variation well
+
+
+# (k) - Residual analysis #######################
+
+# lm_robust output is an `object` or `list` with different elements
+# Check the `Value` section
+?lm_robust
+
+# Get the predicted y values from the model
+df$reg5_y_pred <- reg5$fitted.values
+# Calculate the errors of the model
+df$reg5_res <- df$ln_death - df$reg5_y_pred 
+
+# Find countries with largest negative errors
+df %>% top_n( -5 , reg5_res ) %>% 
+  select( country , ln_death , reg5_y_pred , reg5_res )
+
+# Find countries with largest positive errors
+df %>% top_n( 5 , reg5_res ) %>% 
+  select( country , ln_death , reg5_y_pred , reg5_res )
+
 
 
 

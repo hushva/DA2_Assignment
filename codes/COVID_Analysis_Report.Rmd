@@ -1,9 +1,11 @@
 ---
 title: "COVID Analysis Report"
-author: "Karola Takács"
+author: 'Karola Takács, Student_id: 2003898'
 date: "29/11/2020"
-output: html_document
-editor_options: 
+output:
+  html_document: default
+  pdf_document: default
+editor_options:
   chunk_output_type: console
 ---
 
@@ -47,18 +49,34 @@ df <- filter(df,death != 0,)
 ```
 
 
-## Histogram and summary statistics ##
+## Summary statistics ##
 
 
 ```{r sum stats}
 
-print(summary(df$confirmed))
-print(summary(df$death))
+conf_summary <- df %>%  summarise(
+  mean = mean( confirmed ),
+  median = median( confirmed ),
+  sd = sd( confirmed  ),
+  min = min( confirmed ),
+  max = max( confirmed ))
+
+death_summary <- df %>%  summarise(
+  mean = mean( death ),
+  median = median( death ),
+  sd = sd( death ),
+  min = min( death ),
+  max = max( death ))
 ```
 
-The distribution of both variables is skewed with a long right tail
+```{r stats table, results='asis'}
 
-## Transformations ##
+```
+
+
+The distribution of both variables is skewed with a long right tail.
+
+### Transformations ###
 
 * Level-level: quasi linear (little curvy) but the problem is that the observations are grouped to the lower left corner. This skewness was already visible on the distribution histogram above. This is not giving us any useful patterns of association.
 * Taking the natural logarithm of either X or Y variables indicates a non-linear pattern. In case of ln(confirmed cases) the distribution is less skewed though, but the shape is closer to exponential or maybe parabola (only a segment of the U shape)
@@ -66,7 +84,7 @@ The distribution of both variables is skewed with a long right tail
 Since I removed observations with zero values for the variable death, log can be applied to it as well.
 
 
-## Estimating different models ##
+### Estimating different models ###
 
 - **Linear model**: For countries with 1% more confirmed cases, we would expect the number of deaths to change by 1.02%, on average.
 - **Quadratic model**: We can see that the parabola in convex (positive Beta2)
@@ -95,14 +113,53 @@ df <- df %>% mutate( ln_confirmed_sq = ln_confirmed^2,
 ```
 
 
-Model: ln(death) = -3.01 + 0.95*ln(confirmed)
+Model formula: ln(death) = -3.01 + 0.95*ln(confirmed)
 Interpretation:
 - Alpha: not interpreted
 - Beta: for countries with 10% more confirmed cases we would expect number of deaths to be higher by 9.5% on average.
 
+### Hypothesis testing ###
+
+Our null hypothesis says that beta = 0
+Chosen significance level: 0.05
+As the p-value is much less than 0.05, we can reject the null hypothesis that beta = 0. Hence there is a significant relationship between the variables.
+
+
+```{r}
+reg5 <- lm_robust(ln_death ~ ln_confirmed, data = df , weights = population)
+```
+
+
+### Residual analysis ###
+
+```{r residuals}
+# Get the predicted y values from the model
+df$reg5_y_pred <- reg5$fitted.values
+# Calculate the errors of the model
+df$reg5_res <- df$ln_death - df$reg5_y_pred 
+
+# Find countries with largest negative errors
+top5 <- df %>% top_n( -5 , reg5_res ) %>% 
+  select( country , ln_death , reg5_y_pred , reg5_res )
+# Find countries with largest positive errors
+bottom5 <- df %>% top_n( 5 , reg5_res ) %>% 
+  select( country , ln_death , reg5_y_pred , reg5_res )
+```
+
+```{r res table}
+print(top5)
+print(bottom5)
+```
+
+Countries with the largest negative errors are: Burundi, Iceland, Quatar, Singapore, Sri Lanka. These countries have a lower number of deaths than it was predicted by the regression model.Similarily countries with the largest positive errors are: Bolivia, Ecuador, Iran, Mexico, Yemen. These have higher actual number of deaths than it was predicted by the model. Since the residuals are not that big (though they are ln) probably outliers have not been overlooked. 
+
+## Summary ##
+
+
+
 # Appendix #
 
-## Distributions
+### Distributions ###
 ```{r, echo = F,warning=FALSE, message=FALSE, results = 'hide'}
 df %>%
   ggplot(aes(x=confirmed)) +
@@ -118,26 +175,26 @@ df %>%
 ```
 
 
-## Investigating transformations
+### Investigating transformations ### 
 ```{r, echo = F, warning=FALSE, message=FALSE, results = 'hide'}
 # death - confirmed level-level model without scaling
 ggplot( df , aes(x = confirmed, y = death)) +
   geom_point() +
   geom_smooth(method="loess")+
-  labs(x = "Number of confirmed cases",y = "Number of deaths")
+  labs(x = "Number of confirmed cases",y = "Number of deaths", title = "Figure 2.1 Level-level transformation")
 
 # death - confirmed level - log model
 ggplot( df , aes(x = confirmed, y = death)) +
 geom_point() +
   geom_smooth(method="loess")+
-  labs(x = "Number of confirmed cases, ln scale",y = "Number of deaths") +
+  labs(x = "Number of confirmed cases, ln scale",y = "Number of deaths", title = "Figure 2.2 Level-log transformation") +
   scale_x_continuous( trans = log_trans(),  breaks = c(10,50,100,200,500,1000,5000,10000))
 
 # death - confirmed log - level model
 ggplot( df , aes(x = confirmed, y = death)) +
   geom_point() +
   geom_smooth(method="loess")+
-  labs(x = "Number of confirmed cases",y = "Number of deaths, ln scale") +
+  labs(x = "Number of confirmed cases",y = "Number of deaths, ln scale", title = "Figure 2.3 Log-level transformation") +
   scale_y_continuous( trans = log_trans() )
 
 
@@ -145,12 +202,12 @@ ggplot( df , aes(x = confirmed, y = death)) +
 ggplot( df , aes(x = confirmed, y = death)) +
   geom_point() +
   geom_smooth(method="loess")+
-  labs(x = "Number of confirmed cases, ln scale",y = "Number of deaths, ln scale") +
+  labs(x = "Number of confirmed cases, ln scale",y = "Number of deaths, ln scale", title = "Figure 2.4 Log-log transformation") +
   scale_x_continuous( trans = log_trans(), breaks = c(10,50,100,200,500,1000,5000,10000)) +
   scale_y_continuous( trans = log_trans() )
 ```
 
-## Model estimation
+## Model estimation ##
 
 ```{r reg1, echo = F, warning=FALSE, message=FALSE, results = 'hide'}
 # reg1:
@@ -160,8 +217,9 @@ summary( reg1 )
 
 # Visual inspection:
 ggplot( data = df, aes( x = ln_confirmed, y = ln_death) ) + 
-  geom_point( color='green') +
-  geom_smooth( method = lm , color = 'red' )
+  geom_point( color='seagreen', size = 2) +
+  geom_smooth( method = lm , color = 'tomato2') +
+  labs(x = "Number of confirmed cases, ln scale",y = "Number of deaths, ln scale", title = "Regression 1 - Linear model", caption = "Figure 3.1" )
 ```
 
 ```{r reg2, echo = F, warning=FALSE, message=FALSE, results = 'hide'}
@@ -170,8 +228,9 @@ reg2 <- lm_robust( ln_death ~ ln_confirmed + ln_confirmed_sq , data = df )
 summary( reg2 )
 
 ggplot( data = df, aes( x = ln_confirmed, y = ln_death ) ) + 
-  geom_point( color='green') +
-  geom_smooth( formula = y ~ poly(x,2) , method = lm , color = 'red' )
+  geom_point( color='seagreen', size = 2) +
+  geom_smooth( formula = y ~ poly(x,2) , method = lm , color = 'tomato2' ) +
+  labs(x = "Number of confirmed cases, ln scale",y = "Number of deaths, ln scale", title = "Regression 2 - Quadratic  model", caption = "Figure 3.2" )
 ```
 
 ```{r reg3, echo = F, warning=FALSE, message=FALSE, results = 'hide'}
@@ -180,37 +239,40 @@ reg3 <- lm_robust( ln_death ~ ln_confirmed + ln_confirmed_sq + ln_confirmed_cb ,
 summary( reg3 )
 
 ggplot( data = df, aes( x = ln_confirmed, y = ln_death) ) + 
-  geom_point( color='green') +
-  geom_smooth( formula = y ~ poly(x,3) , method = lm , color = 'red' )
+  geom_point( color='seagreen') +
+  geom_smooth( formula = y ~ poly(x,3) , method = lm , color = 'tomato2' ) +
+  labs(x = "Number of confirmed cases, ln scale",y = "Number of deaths, ln scale", title = "Regression 3 - Cubic  model", caption = "Figure 3.3")
 ```
 
 ```{r reg4, echo = F, warning=FALSE, message=FALSE, results = 'hide'}
 # reg4:
 # Regression with piecewise linear spline:
-# 1st define the cutoff for number of confirmed cases
+# define the cutoff for number of confirmed cases
 cutoff <- 5000
-# 2nd we use a log transformation -> cutoff needs to be transformed as well
+# use a log transformation
 cutoff_ln<- log( cutoff )
 # Use simple regression with the lspline function
-?lspline
+
 reg4 <- lm_robust(ln_death ~ lspline( ln_confirmed , cutoff_ln ), data = df )
 summary( reg4 )
 ggplot( data = df, aes( x = ln_confirmed, y = ln_death) ) + 
-  geom_point( color='blue') +
-  geom_smooth( formula = y ~ lspline(x,cutoff_ln) , method = lm , color = 'red' )
+  geom_point( color='seagreen') +
+  geom_smooth( formula = y ~ lspline(x,cutoff_ln) , method = lm , color = 'tomato2' ) +
+  labs(x = "Number of confirmed cases, ln scale",y = "Number of deaths, ln scale", title = "Regression 4 - PLS  model", caption = "Figure 3.4" )
 ```
 
+
 ```{r reg5, echo = F, warning=FALSE, message=FALSE, results = 'hide'}
-# Weighted-OLS: use reg4 setup and weight with population
-reg5 <- lm_robust(ln_death ~ ln_confirmed, data = df , weights = population)
 summary( reg5 )
 
 ggplot(data = df, aes(x = ln_confirmed, y = ln_death)) +
-  geom_point(data = df, aes(size=population),  color = 'purple', shape = 16, alpha = 0.6,  show.legend=F) +
-  geom_smooth(aes(weight = population), method = "lm", color='red') +
-  #scale_size(range = c(1, 15)) +
-  #coord_cartesian(ylim = c(50, 85)) +
-  labs(x = "ln(Number of confirmed cases) ",y = "ln(Number of death)") 
+  geom_point(data = df, aes(size=population),  color = 'seagreen4', shape = 18, alpha = 0.6,  show.legend=F) +
+  geom_smooth(aes(weight = population), method = "lm", color='tomato2', se = F, size = 0.7) +
+  labs(x = "ln(Number of confirmed cases)",y = "ln(Number of death)", title = "Regression 5 - Weighted linear  model", caption = "Figure 3.5" ) +
+ # theme_gray() +
+  annotate("text", x = 16.047702, y = 12.3532548, label = "USA", size = 4) +
+  annotate("text", x = 11.423570, y = 8.4635814, label = "China", size = 4)+
+  annotate("text", x = 15.927858,  y = 11.7207279, label = "India", size = 4)
 ```
 
 ```{r echo=FALSE, results='asis'}
@@ -220,9 +282,15 @@ cat('<iframe src="data:text/html;charset=utf-8,', tmp ,
     '" style="border: none; seamless:seamless; width: 800px; height: 200px"></iframe>')
 ```
 
+
 Based on model comparison my chosen model is reg5 - weighted linear
 
    Substantive: - log-log interpretation works properly with these type of variables
                 - magnitude of coefficients are meaningful
    Statistical: - linear is a good approximation
                 - very high R-squared and captures variation well
+                
+```{r hypothesis}
+summary( reg5 )
+
+```

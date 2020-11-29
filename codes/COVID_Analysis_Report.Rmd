@@ -1,30 +1,120 @@
 ---
-title: "COVID_Analysis_Report"
+title: "COVID Analysis Report"
 author: "Karola Takács"
 date: "29/11/2020"
 output: html_document
+editor_options: 
+  chunk_output_type: console
 ---
 
+## Introduction ##
+Outcome variable: **Number of registered deaths**
+Explanatory variable: **Number of registered case**
+
+**Research question**: Which countries are underperforming taken their number of registered cases in terms of number of deaths?
+
+**Variables**
+
+- Population data is coming from The World Bank, which gathers cross-sectional internationally comparable statistical data, measured per country in each year.
+
+- The COVID-related variables originate from the JHU CSSE COVID-19 Dataset, where daily case reports are collected. Variables included in the analysis after the cleaning can be found in the variables.xlsx file.
+
+- The population is all the countries where there are reported COVID-cases. This covers most of the world by now.
+Potential issues: not that reliable data reporting in 3rd countries; delay in reporting times and date, so cases might get added to a different date when they actually were discovered, but this has a bigger relvance when the case numbers were still low. Deaths and confirmed cases are not 100% discovered and thus reported in general.
+
+- Selecting observations:  grouped my observations by country_region, then removed all the aggregate countries/regions since those were practically duplicates. Removed those observations which were lacking in population data and also dropped countries where either the y or the x variable was NA. Pppulation could be scaled by dividing it by 1000 (the smallest value for that was San Marino with 33860 inhabitants), but this variable was only used for weghting. There are extreme values for China and India in terms of population, but those are not from error, so I kept them.Lastly I filteres the rows where number of deaths was zero, since taking the ln of zero is not defined.
+
+
 ```{r setup, include=FALSE}
+
+rm(list=ls())
+library(knitr)
+library(xtable)
+library(markdown)
+library(tidyverse)
+require(scales)
+library(lspline)
+library(estimatr)
+library(texreg)
+library(ggthemes)
+library()
 knitr::opts_chunk$set(echo = TRUE)
+df <- read_csv( "https://raw.githubusercontent.com/hushva/DA2_Assignment/master/data/clean/covid_pop_02_11_2020_clean.csv")
+rstudioapi::viewer
 ```
 
-## R Markdown
-
-This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
-
-When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
-
-```{r cars}
-summary(cars)
+```{r filter,echo=FALSE, warning=F, message=F, warning=FALSE}
+df <- filter(df,death != 0,)
 ```
 
-## Including Plots
 
-You can also embed plots, for example:
+## Histogram and summary statistics ##
 
-```{r pressure, echo=FALSE}
-plot(pressure)
+
+```{r sum stats,echo=FALSE, warning=FALSE, message=FALSE}
+
+print(summary(df$confirmed))
+print(summary(df$death))
 ```
 
-Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+The distribution of both variables is skewed with a long right tail
+## Transformations
+- Substantive reasoning
+* Log-log: quasi linear - little curvy - but the problem is that the observations are grouped to the lower left corner. This skewness was already visible on the distribution histogram above. This is not giving us any useful patterns of association.
+* Taking the natural logarithm of either X or Y variables indicates a non-linear pattern. In case of ln(confirmed cases) the distribution is less skewed though, but the shape is closer to exponential or maybe parabola (only a segment of the U shape)
+
+```{r, echo = F}
+
+```
+
+# Appendix #
+
+## Distributions
+```{r, , echo = F,warning=FALSE, message=FALSE}
+df %>%
+  ggplot(aes(x=confirmed)) +
+  geom_histogram()+
+  theme_gray()+
+  labs(x= "Nr. of confirmed cases", y= "Frequency", title = "Figure 1.1 Distribution of confirmed cases")
+
+df %>%
+  ggplot(aes(x=death)) +
+  geom_histogram()+
+  theme_gray()+
+  labs(x= "Nr. of deaths", y= "Frequency", title = "Figure 1.2 Distribution of registered number of deaths")
+```
+
+
+## Investigating transformations
+```{r, echo = F, warning=FALSE, message=FALSE}
+# death - confirmed level-level model without scaling
+ggplot( df , aes(x = confirmed, y = death)) +
+  geom_point() +
+  geom_smooth(method="loess")+
+  labs(x = "Number of confirmed cases",y = "Number of deaths")
+
+# death - confirmed level - log model
+ggplot( df , aes(x = confirmed, y = death)) +
+geom_point() +
+  geom_smooth(method="loess")+
+  labs(x = "Number of confirmed cases, ln scale",y = "Number of deaths") +
+  scale_x_continuous( trans = log_trans(),  breaks = c(10,50,100,200,500,1000,5000,10000))
+
+# death - confirmed log - level model
+ggplot( df , aes(x = confirmed, y = death)) +
+  geom_point() +
+  geom_smooth(method="loess")+
+  labs(x = "Number of confirmed cases",y = "Number of deaths, ln scale") +
+  scale_y_continuous( trans = log_trans() )
+
+
+# death - confirmed log - log model
+ggplot( df , aes(x = confirmed, y = death)) +
+  geom_point() +
+  geom_smooth(method="loess")+
+  labs(x = "Number of confirmed cases, ln scale",y = "Number of deaths, ln scale") +
+  scale_x_continuous( trans = log_trans(), breaks = c(10,50,100,200,500,1000,5000,10000)) +
+  scale_y_continuous( trans = log_trans() )
+```
+
+

@@ -173,7 +173,7 @@ ggplot(data = df, aes(x = ln_confirmed, y = ln_death)) +
   geom_smooth(aes(weight = population), method = "lm", color='red') +
   #scale_size(range = c(1, 15)) +
   #coord_cartesian(ylim = c(50, 85)) +
-  labs(x = "ln(Number of confirmed cases) ",y = "ln(Number of years") 
+  labs(x = "ln(Number of confirmed cases) ",y = "ln(Number of death)") 
 # +
   #annotate("text", x = 4, y = 80, label = "USA", size=5) # +
   #annotate("text", x = 2.7, y = 79, label = "China", size=5)+
@@ -234,6 +234,63 @@ library(car)
 # Let test: H0: ln_confirmed = 5, HA: ln_gdppc neq 5
 linearHypothesis( reg5 , "ln_gdppc = 5")
 
+
+## Prediction uncertainty - #####################
+
+# CI of predicted value/regression line is implemented in ggplot
+ggplot( data = df, aes( x = ln_confirmed, y = ln_death ) ) + 
+  geom_point( color='blue') +
+  geom_smooth( method = lm , color = 'red' , se = T )
+
+##
+# You can get them by predict function
+#   interval can be any of c("none", "confidence", "prediction")
+#   alpha = 0.05 (default) is the significance level
+###
+# CI of regression line
+pred5_CI <- predict( reg5, newdata = df , interval ="confidence" , alpha = 0.05 )
+## 95% CI is going to be used if alpha = 0.05
+pred5_CI
+
+# SEs for each point:
+# pred5_CI <- predict( reg5, newdata = df , se.fit=T,
+#                interval ="confidence" , alpha = 0.05 )
+#pred5_CI
+ 
+ 
+# Hand made CI for regression line
+# 1) Add to datatset:
+df <- df %>% mutate( CI_reg5_lower = pred5_CI$fit[,2],
+                     CI_reg5_upper = pred5_CI$fit[,3] )
+# 2) Plot
+ggplot(  ) + 
+  geom_point( data = df, aes( x = ln_confirmed, y = ln_death ) , color='blue') +
+  geom_line( data = df, aes( x = ln_confirmed, y = reg5_y_pred ) , color = 'red' , size = 1 ) +
+  geom_line( data = df, aes( x = ln_confirmed, y = CI_reg5_lower ) , color = 'green' ,
+             size = 1 , linetype = "dashed" ) +
+  geom_line( data = df, aes( x = ln_confirmed, y = CI_reg5_upper ) , color = 'black' ,
+             size = 1 , linetype = "dashed" ) +
+  labs(x = "ln(Number of confirmed cases) ",y = "ln(Number of death)") 
+
+
+## prediction intervals ########################
+
+pred5_PI <- predict( reg5, newdata = df , interval ="prediction" , alpha = 0.05 )
+
+# Hand made Prediction Interval for regression line
+# 1) Add to datatset (You can use the SE's as well if you wish...
+#                        then alpha does not have any meaning)
+df <- df %>% mutate( PI_reg5_lower = pred5_PI$fit[,2],
+                     PI_reg5_upper = pred5_PI$fit[,3] )
+# 2) Plot
+ggplot(  ) + 
+  geom_point( data = df, aes( x = ln_confirmed, y = ln_death ) , color='blue') +
+  geom_line( data = df, aes( x = ln_confirmed, y = reg5_y_pred ) , color = 'red' , size = 1 ) +
+  geom_line( data = df, aes( x = ln_confirmed, y = PI_reg5_lower ) , color = 'green' ,
+             size = 1 , linetype = "dotted" ) +
+  geom_line( data = df, aes( x = ln_confirmed, y = PI_reg5_upper ) , color = 'black' ,
+             size = 1 , linetype = "dotted" ) +
+  labs(x = "ln(Number of confirmed cases) ",y = "ln(Number of death)") 
 
 
 

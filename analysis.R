@@ -23,12 +23,12 @@ summary(df$active)
 summary(df$population)
 
 #Scaling for the population variable by 1000
-df <- df %>% mutate(df,population = population/1000)
+# df <- df %>% mutate(df,population = population/1000)
 # remove rows where death is zero since the ln of 0 is not defined
 df <- filter(df,death != 0,)
 
 
-#(c) - SUmmary stats and and histograms #########
+#(c) - SUmmary stats and histograms #########
 df %>%
   keep(is.numeric) %>% 
   gather() %>% 
@@ -56,6 +56,31 @@ ggplot(data = df, aes(x = death))+
 summary(df$confirmed)
 summary(df$death)
 
+library(xtable)
+conf_summary <- df %>%  summarise(
+  mean = mean( confirmed ),
+  median = median( confirmed ),
+  sd = sd( confirmed  ),
+  min = min( confirmed ),
+  max = max( confirmed ))
+
+death_summary <- df %>%  summarise(
+  mean = mean( death ),
+  median = median( death ),
+  sd = sd( death ),
+  min = min( death ),
+  max = max( death ))
+
+xt_conf <- xtable(conf_summary,caption = "Conf_stat")
+name(xt_conf) <- c('Mean','Median', 'Std.dev.', 'Min','Max')
+print(xt_conf, type = "latex", comment = getOption("xtable.comment", FALSE))
+
+xt_death <- xtable(death_summary,caption = "Conf_stat")
+name(xt_death) <- c('Mean','Median', 'Std.dev.','Min','Max')
+print(xt_death, type = "latex", comment = getOption("xtable.comment", FALSE))
+
+sstat_table <- xt_conf %>% add_row( xt_death)
+sstat_table
 
 
 #(g) - possible log transformations ##################

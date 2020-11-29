@@ -37,13 +37,12 @@ library(lspline)
 library(estimatr)
 library(texreg)
 library(ggthemes)
-library()
-knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(echo = FALSE,warning = FALSE, message = FALSE)
 df <- read_csv( "https://raw.githubusercontent.com/hushva/DA2_Assignment/master/data/clean/covid_pop_02_11_2020_clean.csv")
 rstudioapi::viewer
 ```
 
-```{r filter,echo=FALSE, warning=F, message=F, warning=FALSE}
+```{r filter}
 df <- filter(df,death != 0,)
 ```
 
@@ -51,26 +50,60 @@ df <- filter(df,death != 0,)
 ## Histogram and summary statistics ##
 
 
-```{r sum stats,echo=FALSE, warning=FALSE, message=FALSE}
+```{r sum stats}
 
 print(summary(df$confirmed))
 print(summary(df$death))
 ```
 
 The distribution of both variables is skewed with a long right tail
-## Transformations
-- Substantive reasoning
-* Log-log: quasi linear - little curvy - but the problem is that the observations are grouped to the lower left corner. This skewness was already visible on the distribution histogram above. This is not giving us any useful patterns of association.
+
+## Transformations ##
+
+* Level-level: quasi linear (little curvy) but the problem is that the observations are grouped to the lower left corner. This skewness was already visible on the distribution histogram above. This is not giving us any useful patterns of association.
 * Taking the natural logarithm of either X or Y variables indicates a non-linear pattern. In case of ln(confirmed cases) the distribution is less skewed though, but the shape is closer to exponential or maybe parabola (only a segment of the U shape)
+* Log-log transformation: we could say that the the distribution of X and Y much more symmetric and not that many extreme values. It looks almost as a 45°line, but probably more difficult to interpret.
+Since I removed observations with zero values for the variable death, log can be applied to it as well.
 
-```{r, echo = F}
 
+## Estimating different models ##
+
+- **Linear model**: For countries with 1% more confirmed cases, we would expect the number of deaths to change by 1.02%, on average.
+- **Quadratic model**: We can see that the parabola in convex (positive Beta2)
+- **PLS**:
+  - When comparing observations with number of confirmed cases lass than 5000, number of deaths is 0.81% higher, on     average, for observations with one percent higher number of confirmed cases.
+  - When comparing observations with number of confirmed cases over 5000, number of deaths is 1.08% higher, on     average, for observations with one percent higher number of confirmed cases.
+- **Weighted linear**: For countries with 10% more confirmed cases we would expect number of deaths to be higher by 9.5% on average.
+
+**R-squared**: initially quite high, the best in case of the weighted model: this model explains 93% of the variation in the outcome variable and only 7% is left for residual variation.
+
+
+```{r, echo = F, include = FALSE}
+# Take both logs
+df <- df %>% mutate( ln_death = log( death ),
+                     ln_confirmed = log( confirmed ) )
+
+# Make some models:
+
+#     reg1: linear:       ln_death = alpha + beta * ln_confirmed
+#     reg2: exponential:  ln_death = alpha + beta_1 * ln_confirmed + beta_2 * ln_confirmed^2
+#     reg3: cubic:        ln_death = alpha + beta_1 * ln_confirmed + beta_2 * ln_confirmed^2 + beta_3 * ln_confirmed^3
+#     reg4: weighted-ols: ln_death = alpha + beta * ln_gdppc, weights: population
+
+df <- df %>% mutate( ln_confirmed_sq = ln_confirmed^2,
+                     ln_confirmed_cb = ln_confirmed^3)
 ```
+
+
+Model: ln(death) = -3.01 + 0.95*ln(confirmed)
+Interpretation:
+- Alpha: not interpreted
+- Beta: for countries with 10% more confirmed cases we would expect number of deaths to be higher by 9.5% on average.
 
 # Appendix #
 
 ## Distributions
-```{r, , echo = F,warning=FALSE, message=FALSE}
+```{r, echo = F,warning=FALSE, message=FALSE, results = 'hide'}
 df %>%
   ggplot(aes(x=confirmed)) +
   geom_histogram()+
@@ -86,7 +119,7 @@ df %>%
 
 
 ## Investigating transformations
-```{r, echo = F, warning=FALSE, message=FALSE}
+```{r, echo = F, warning=FALSE, message=FALSE, results = 'hide'}
 # death - confirmed level-level model without scaling
 ggplot( df , aes(x = confirmed, y = death)) +
   geom_point() +
@@ -117,4 +150,79 @@ ggplot( df , aes(x = confirmed, y = death)) +
   scale_y_continuous( trans = log_trans() )
 ```
 
+## Model estimation
 
+```{r reg1, echo = F, warning=FALSE, message=FALSE, results = 'hide'}
+# reg1:
+reg1 <- lm_robust( ln_death ~ ln_confirmed , data = df , se_type = "HC2" )
+# Summary statistics
+summary( reg1 )
+
+# Visual inspection:
+ggplot( data = df, aes( x = ln_confirmed, y = ln_death) ) + 
+  geom_point( color='green') +
+  geom_smooth( method = lm , color = 'red' )
+```
+
+```{r reg2, echo = F, warning=FALSE, message=FALSE, results = 'hide'}
+# reg2:
+reg2 <- lm_robust( ln_death ~ ln_confirmed + ln_confirmed_sq , data = df )
+summary( reg2 )
+
+ggplot( data = df, aes( x = ln_confirmed, y = ln_death ) ) + 
+  geom_point( color='green') +
+  geom_smooth( formula = y ~ poly(x,2) , method = lm , color = 'red' )
+```
+
+```{r reg3, echo = F, warning=FALSE, message=FALSE, results = 'hide'}
+# reg3:
+reg3 <- lm_robust( ln_death ~ ln_confirmed + ln_confirmed_sq + ln_confirmed_cb , data = df )
+summary( reg3 )
+
+ggplot( data = df, aes( x = ln_confirmed, y = ln_death) ) + 
+  geom_point( color='green') +
+  geom_smooth( formula = y ~ poly(x,3) , method = lm , color = 'red' )
+```
+
+```{r reg4, echo = F, warning=FALSE, message=FALSE, results = 'hide'}
+# reg4:
+# Regression with piecewise linear spline:
+# 1st define the cutoff for number of confirmed cases
+cutoff <- 5000
+# 2nd we use a log transformation -> cutoff needs to be transformed as well
+cutoff_ln<- log( cutoff )
+# Use simple regression with the lspline function
+?lspline
+reg4 <- lm_robust(ln_death ~ lspline( ln_confirmed , cutoff_ln ), data = df )
+summary( reg4 )
+ggplot( data = df, aes( x = ln_confirmed, y = ln_death) ) + 
+  geom_point( color='blue') +
+  geom_smooth( formula = y ~ lspline(x,cutoff_ln) , method = lm , color = 'red' )
+```
+
+```{r reg5, echo = F, warning=FALSE, message=FALSE, results = 'hide'}
+# Weighted-OLS: use reg4 setup and weight with population
+reg5 <- lm_robust(ln_death ~ ln_confirmed, data = df , weights = population)
+summary( reg5 )
+
+ggplot(data = df, aes(x = ln_confirmed, y = ln_death)) +
+  geom_point(data = df, aes(size=population),  color = 'purple', shape = 16, alpha = 0.6,  show.legend=F) +
+  geom_smooth(aes(weight = population), method = "lm", color='red') +
+  #scale_size(range = c(1, 15)) +
+  #coord_cartesian(ylim = c(50, 85)) +
+  labs(x = "ln(Number of confirmed cases) ",y = "ln(Number of death)") 
+```
+
+```{r echo=FALSE, results='asis'}
+tmp <- URLencode(paste(readLines("~/Documents/CEU/Courses/2020_Fall/Mandatory/DA2/DA2_Assignment/out/model_comparison.html"), collapse="\n"))
+
+cat('<iframe src="data:text/html;charset=utf-8,', tmp ,
+    '" style="border: none; seamless:seamless; width: 800px; height: 200px"></iframe>')
+```
+
+Based on model comparison my chosen model is reg5 - weighted linear
+
+   Substantive: - log-log interpretation works properly with these type of variables
+                - magnitude of coefficients are meaningful
+   Statistical: - linear is a good approximation
+                - very high R-squared and captures variation well

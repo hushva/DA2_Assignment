@@ -13,7 +13,7 @@ editor_options:
 Outcome variable: **Number of registered deaths**
 Explanatory variable: **Number of registered case**
 
-**Research question**: Which countries are underperforming taken their number of registered cases in terms of number of deaths?
+**Research question**: Which countries are under performing taken their number of registered cases in terms of number of deaths in our model?
 
 **Variables**
 
@@ -22,9 +22,9 @@ Explanatory variable: **Number of registered case**
 - The COVID-related variables originate from the JHU CSSE COVID-19 Dataset, where daily case reports are collected. Variables included in the analysis after the cleaning can be found in the variables.xlsx file.
 
 - The population is all the countries where there are reported COVID-cases. This covers most of the world by now.
-Potential issues: not that reliable data reporting in 3rd countries; delay in reporting times and date, so cases might get added to a different date when they actually were discovered, but this has a bigger relvance when the case numbers were still low. Deaths and confirmed cases are not 100% discovered and thus reported in general.
+Potential issues: not that reliable data reporting in 3rd countries; delay in reporting times and date, so cases might get added to a different date when they actually were discovered, but this has a bigger relevance when the case numbers were still low. Deaths and confirmed cases are not 100% discovered and thus reported in general.
 
-- Selecting observations:  grouped my observations by country_region, then removed all the aggregate countries/regions since those were practically duplicates. Removed those observations which were lacking in population data and also dropped countries where either the y or the x variable was NA. Pppulation could be scaled by dividing it by 1000 (the smallest value for that was San Marino with 33860 inhabitants), but this variable was only used for weghting. There are extreme values for China and India in terms of population, but those are not from error, so I kept them.Lastly I filteres the rows where number of deaths was zero, since taking the ln of zero is not defined.
+- Selecting observations:  grouped my observations by country_region, then removed all the aggregate countries/regions since those were practically duplicates. Removed those observations which were lacking in population data and also dropped countries where either the y or the x variable was NA. Population could be scaled by dividing it by 1000 (the smallest value for that was San Marino with 33860 inhabitants), but this variable was only used for weighting. There are extreme values for China and India in terms of population, but those are not from error, so I kept them.Lastly I filters the rows where number of deaths was zero, since taking the ln of zero is not defined.
 
 
 ```{r setup, include=FALSE}
@@ -49,7 +49,7 @@ df <- filter(df,death != 0,)
 ```
 
 
-## Summary statistics ##
+### Summary statistics ###
 
 
 ```{r sum stats}
@@ -69,12 +69,12 @@ death_summary <- df %>%  summarise(
   max = max( death ))
 ```
 
-```{r stats table, results='asis'}
-
+```{r stats table}
+glimpse(conf_summary)
+glimpse(death_summary)
 ```
 
-
-The distribution of both variables is skewed with a long right tail.
+The mean of the left-hand side variable is 7174 and the median is 482. For the right-hand side variable these are 279454 and 38919.5 respectively. Both suggest that their distributions are skewed with a long right tail since mean is bigger than the median. The standard deviation is very big for both variables indicating a very wide spread around the mean.
 
 ### Transformations ###
 
@@ -151,10 +151,11 @@ print(top5)
 print(bottom5)
 ```
 
-Countries with the largest negative errors are: Burundi, Iceland, Quatar, Singapore, Sri Lanka. These countries have a lower number of deaths than it was predicted by the regression model.Similarily countries with the largest positive errors are: Bolivia, Ecuador, Iran, Mexico, Yemen. These have higher actual number of deaths than it was predicted by the model. Since the residuals are not that big (though they are ln) probably outliers have not been overlooked. 
+Countries with the largest negative errors are: Burundi, Iceland, Quatar, Singapore, Sri Lanka. These countries have a lower number of deaths than it was predicted by the regression model.Similarly countries with the largest positive errors are: Bolivia, Ecuador, Iran, Mexico, Yemen. These have higher actual number of deaths than it was predicted by the model. Since the residuals are not that big (though they are ln) probably outliers have not been overlooked. 
 
 ## Summary ##
 
+Dependent variable in the analysis is the number of registered death while the independent variable is the number of registered cases.The basic level-level plotting suggests a positive mean-dependence - as average y increases the values of x also seem to increase. After assessing which transformation to use and then plotting 5 different models,  I chose the weighted linear model, because that produced an R-squared of 93%. This tells us that this linear approximation almost explains all the variations in the data, however the line in not a perfect fit: e.g. cubic model seems to have smaller heteroskedasticity. I would try to apply variable scaling (i.e ratios) or set more knots at the linear spline model, as it seems there could be another point at around ln 12. I also deleted observations with zero number of deaths, but if I would keep them and apply level-level transformation then that would also be a quite good model fit.
 
 
 # Appendix #
@@ -165,13 +166,13 @@ df %>%
   ggplot(aes(x=confirmed)) +
   geom_histogram()+
   theme_gray()+
-  labs(x= "Nr. of confirmed cases", y= "Frequency", title = "Figure 1.1 Distribution of confirmed cases")
+  labs(x= "Nr. of confirmed cases", y= "Frequency", title = "Distribution of confirmed cases", caption = "Figure 1.1")
 
 df %>%
   ggplot(aes(x=death)) +
   geom_histogram()+
   theme_gray()+
-  labs(x= "Nr. of deaths", y= "Frequency", title = "Figure 1.2 Distribution of registered number of deaths")
+  labs(x= "Nr. of deaths", y= "Frequency", title = "Distribution of registered number of deaths", caption = "Figure 1.2")
 ```
 
 
@@ -181,20 +182,20 @@ df %>%
 ggplot( df , aes(x = confirmed, y = death)) +
   geom_point() +
   geom_smooth(method="loess")+
-  labs(x = "Number of confirmed cases",y = "Number of deaths", title = "Figure 2.1 Level-level transformation")
+  labs(x = "Number of confirmed cases",y = "Number of deaths", title = "Level-level transformation", caption = "Figure 2.1")
 
 # death - confirmed level - log model
 ggplot( df , aes(x = confirmed, y = death)) +
 geom_point() +
   geom_smooth(method="loess")+
-  labs(x = "Number of confirmed cases, ln scale",y = "Number of deaths", title = "Figure 2.2 Level-log transformation") +
+  labs(x = "Number of confirmed cases, ln scale",y = "Number of deaths", title = "Level-log transformation", caption = "Figure 2.2") +
   scale_x_continuous( trans = log_trans(),  breaks = c(10,50,100,200,500,1000,5000,10000))
 
 # death - confirmed log - level model
 ggplot( df , aes(x = confirmed, y = death)) +
   geom_point() +
   geom_smooth(method="loess")+
-  labs(x = "Number of confirmed cases",y = "Number of deaths, ln scale", title = "Figure 2.3 Log-level transformation") +
+  labs(x = "Number of confirmed cases",y = "Number of deaths, ln scale", title = "Log-level transformation", caption = "Figure 2.3") +
   scale_y_continuous( trans = log_trans() )
 
 
@@ -202,7 +203,7 @@ ggplot( df , aes(x = confirmed, y = death)) +
 ggplot( df , aes(x = confirmed, y = death)) +
   geom_point() +
   geom_smooth(method="loess")+
-  labs(x = "Number of confirmed cases, ln scale",y = "Number of deaths, ln scale", title = "Figure 2.4 Log-log transformation") +
+  labs(x = "Number of confirmed cases, ln scale",y = "Number of deaths, ln scale", title = "Log-log transformation", caption = "Figure 2.4") +
   scale_x_continuous( trans = log_trans(), breaks = c(10,50,100,200,500,1000,5000,10000)) +
   scale_y_continuous( trans = log_trans() )
 ```
@@ -239,7 +240,7 @@ reg3 <- lm_robust( ln_death ~ ln_confirmed + ln_confirmed_sq + ln_confirmed_cb ,
 summary( reg3 )
 
 ggplot( data = df, aes( x = ln_confirmed, y = ln_death) ) + 
-  geom_point( color='seagreen') +
+  geom_point( color='seagreen', size = 2) +
   geom_smooth( formula = y ~ poly(x,3) , method = lm , color = 'tomato2' ) +
   labs(x = "Number of confirmed cases, ln scale",y = "Number of deaths, ln scale", title = "Regression 3 - Cubic  model", caption = "Figure 3.3")
 ```
@@ -256,7 +257,7 @@ cutoff_ln<- log( cutoff )
 reg4 <- lm_robust(ln_death ~ lspline( ln_confirmed , cutoff_ln ), data = df )
 summary( reg4 )
 ggplot( data = df, aes( x = ln_confirmed, y = ln_death) ) + 
-  geom_point( color='seagreen') +
+  geom_point( color='seagreen', size = 2) +
   geom_smooth( formula = y ~ lspline(x,cutoff_ln) , method = lm , color = 'tomato2' ) +
   labs(x = "Number of confirmed cases, ln scale",y = "Number of deaths, ln scale", title = "Regression 4 - PLS  model", caption = "Figure 3.4" )
 ```
@@ -268,7 +269,7 @@ summary( reg5 )
 ggplot(data = df, aes(x = ln_confirmed, y = ln_death)) +
   geom_point(data = df, aes(size=population),  color = 'seagreen4', shape = 18, alpha = 0.6,  show.legend=F) +
   geom_smooth(aes(weight = population), method = "lm", color='tomato2', se = F, size = 0.7) +
-  labs(x = "ln(Number of confirmed cases)",y = "ln(Number of death)", title = "Regression 5 - Weighted linear  model", caption = "Figure 3.5" ) +
+  labs(x = "ln(Number of confirmed cases)",y = "ln(Number of death)", title = "Regression 5 - Weighted linear model", caption = "Figure 3.5" ) +
  # theme_gray() +
   annotate("text", x = 16.047702, y = 12.3532548, label = "USA", size = 4) +
   annotate("text", x = 11.423570, y = 8.4635814, label = "China", size = 4)+
@@ -282,15 +283,17 @@ cat('<iframe src="data:text/html;charset=utf-8,', tmp ,
     '" style="border: none; seamless:seamless; width: 800px; height: 200px"></iframe>')
 ```
 
-
 Based on model comparison my chosen model is reg5 - weighted linear
 
-   Substantive: - log-log interpretation works properly with these type of variables
-                - magnitude of coefficients are meaningful
-   Statistical: - linear is a good approximation
-                - very high R-squared and captures variation well
-                
+Substantive:
+- log-log interpretation works properly with these type of variables
+- magnitude of coefficients are meaningful
+Statistical:
+- linear is a good approximation
+- very high R-squared and captures variation well
+
 ```{r hypothesis}
 summary( reg5 )
 
 ```
+
